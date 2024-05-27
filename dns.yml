@@ -1,0 +1,118 @@
+---
+- hosts: all
+  become: true
+  tasks:
+#Установка пакетов 
+  - name: install packages
+    yum: 
+      name:
+        - bind
+        - bind-utils
+        - vim
+        - ntp
+      state: latest
+      update_cache: true  
+#Копирование файла named.zonetransfer.key на хосты с правами 0644
+#Владелец файла — root, група файла — named
+  - name: copy transferkey 
+    copy: src=conf/named.zonetransfer.key dest=/etc/named.zonetransfer.key owner=root group=named mode=0644
+  tags:
+    all4
+    
+#Настройка хоста ns01
+- hosts: ns01
+  become: yes
+  tasks:
+# Настройка firewalld
+  - name: firewalld 
+    service: 
+      name: firewalld
+      state: stopped
+      enabled: false
+# selinux disable      
+  - name: selinux disable
+    shell: "{{item}}"
+    with_items:
+      - setenforce 0
+      - sed -i 's/^SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config
+# для сохранения установленного nameserver в resolv.conf после перезагрузки
+      - sed -i 's/^DNS1=.*/DNS1=10.100.11.134/g' /etc/sysconfig/network-scripts/ifcfg-ens192
+# copy resolv.conf to the servers
+  - name: copy resolv.conf to the servers
+    template:
+      src: servers-resolv.conf.j2
+      dest: /etc/resolv.conf
+      owner: root
+      group: root
+      mode: 0644
+#Копирование конфигурации DNS-сервера
+  - name: copy named.conf
+    copy: src=conf/master-named.conf dest=/etc/named.conf owner=root group=named mode=0640
+#Копирование файлов с настроками зоны. 
+#Будут скопированы все файлы, в имя которых начинается на «named.d»
+  - name: copy zones
+    copy: src={{ item }} dest=/etc/named/ owner=root group=named mode=0660
+    with_fileglob:
+      - conf/named.d*
+      - conf/named.new*
+#Изменение прав каталога /etc/named
+#Права 670, владелец — root, группа — named  
+  - name: set /etc/named permissions
+    file: path=/etc/named owner=root group=named mode=0670
+#Перезапуск службы Named и добавление её в автозагрузку
+  - name: ensure named is running and enabled
+    service: name=named state=restarted enabled=yes
+  tags:
+    ns01
+
+#Настройка хоста ns02
+- hosts: ns02
+  become: yes
+  tasks:
+# Настройка firewalld
+  - name: start and enable firewalld 
+    service: 
+      name: firewalld
+      state: stopped
+      enabled: false
+# selinux disable      
+  - name: selinux disable
+    shell: "{{item}}"
+    with_items:
+      - setenforce 0
+      - sed -i 's/^SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config
+      - sed -i 's/^DNS1=.*/DNS1=10.100.11.135/g' /etc/sysconfig/network-scripts/ifcfg-ens192
+# copy resolv.conf to the servers
+  - name: copy resolv.conf to the servers
+    template: 
+      src: servers-resolv.conf.j2
+      dest: /etc/resolv.conf
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: copy named.conf
+    copy: src=conf/slave-named.conf dest=/etc/named.conf owner=root group=named mode=0640
+
+  - name: set /etc/named permissions
+    file: path=/etc/named owner=root group=named mode=0670
+
+  - name: ensure named is running and enabled
+    service: name=named state=restarted enabled=yes
+  tags:
+    ns02
+
+# Настройка клиентов
+- hosts: client1,client2
+  become: yes
+  tasks:
+  - name: copy resolv.conf to the client
+    copy: src=conf/client-resolv.conf dest=/etc/resolv.conf owner=root group=root mode=0644
+ #Копирование конфигруационного файла rndc
+  - name: copy rndc conf file
+    copy: src=conf/rndc.conf dest=/root/rndc.conf mode=0644
+#Настройка сообщения при входе на сервер
+  - name: copy motd to the client
+    copy: src=conf/client-motd dest=/etc/motd owner=root group=root mode=0644    
+  tags:
+    client

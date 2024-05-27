@@ -1,0 +1,9 @@
+[all:vars]
+ansible_user=root
+ansible_ssh_pass=password
+
+[servers]
+ns01 ansible_host=10.100.11.134 ansible_hostname=ns01
+ns02 ansible_host=10.100.11.135 ansible_hostname=ns02
+client1 ansible_host=10.100.11.136
+client2 ansible_host=10.100.11.137

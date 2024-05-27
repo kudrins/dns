@@ -1,0 +1,18 @@
+---
+vcenter_hostname: 10.100.10.1
+vcenter_username: administrator@vsphere.local
+vcenter_password: password
+
+servers:
+  - { template: t_centos7, name: ns01_7, vlan: VMs11, memory_mb: 1024, hostname: ns01, 
+      ip: 10.100.11.134, mask: 255.255.255.0, gateway: 10.100.11.254 }
+    
+  - { template: t_centos7, name: ns02_7, vlan: VMs11, memory_mb: 1024, hostname: ns02, 
+      ip: 10.100.11.135, mask: 255.255.255.0, gateway: 10.100.11.254 }
+
+  - { template: t_centos7, name: client1_7, vlan: VMs11, memory_mb: 1024, hostname: client1, 
+      ip: 10.100.11.136, mask: 255.255.255.0, gateway: 10.100.11.254 }
+
+  - { template: t_centos7, name: client2_7, vlan: VMs11, memory_mb: 1024, hostname: client2,
+      ip: 10.100.11.137, mask: 255.255.255.0, gateway: 10.100.11.254 }
+    
